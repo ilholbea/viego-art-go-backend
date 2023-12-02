@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
@@ -20,14 +21,14 @@ import (
 // JwtExpirationTime Used to set the expiration time of a JWT in minutes.
 const JwtExpirationTime = 1
 
-var jwtKey = []byte(os.Getenv("JWT_SECRET_KEY"))
+var jwtKey = []byte(LoadEnvironmentVariable("JWT_SECRET_KEY"))
 var dbConfig = &config.Database{
-	Host:     os.Getenv("HOST"),
-	Port:     os.Getenv("PORT"),
-	User:     os.Getenv("USER"),
-	Password: os.Getenv("PASSWORD"),
-	Database: os.Getenv("DATABASE"),
-	Schema:   os.Getenv("SCHEMA"),
+	Host:     LoadEnvironmentVariable("HOST"),
+	Port:     LoadEnvironmentVariable("PORT"),
+	User:     LoadEnvironmentVariable("USER"),
+	Password: LoadEnvironmentVariable("PASSWORD"),
+	Database: LoadEnvironmentVariable("DATABASE"),
+	Schema:   LoadEnvironmentVariable("SCHEMA"),
 }
 
 type Credentials struct {
@@ -214,7 +215,7 @@ func removeAccount(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// generateJWT Used to generated a cookie content, that contains a JWT and expirationTime.
+// generateJWT Used to generate a cookie content, that contains a JWT and expirationTime.
 func generateJWT(credentials Credentials) (*CookieContent, error) {
 	expirationTime := time.Now().Add(JwtExpirationTime * time.Minute)
 	claims := &Claims{
@@ -264,4 +265,16 @@ func validateJWT(request *http.Request) error {
 	}
 
 	return nil
+}
+
+// LoadEnvironmentVariable Used to load constants from the environment variables.
+func LoadEnvironmentVariable(key string) string {
+	// load .env file
+	err := godotenv.Load(".env")
+
+	if err != nil {
+		log.Fatalf("Error loading .env file")
+	}
+
+	return os.Getenv(key)
 }
