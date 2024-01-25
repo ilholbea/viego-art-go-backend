@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
@@ -49,11 +50,24 @@ type Claims struct {
 func Router() *chi.Mux {
 	router := chi.NewRouter()
 
+	router.Use(cors.Handler(cors.Options{
+		// AllowedOrigins:   []string{"https://foo.com"}, // Use this to allow specific origin hosts
+		AllowedOrigins: []string{"http://localhosx"}, // Use this to allow specific origin hosts
+		//AllowedOrigins: []string{"https://*", "http://*"},
+		// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: false,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	}))
+
 	router.Get("/health", health)
 	router.Post("/login", login)
+	router.Post("/register", registerAccount)
 	router.Route("/account", func(r chi.Router) {
 		r.Use(authMiddleware)
-		r.Post("/", registerAccount)
+
 		r.Delete("/{id}", removeAccount)
 		r.Put("/", updateAccount)
 	})
@@ -135,7 +149,7 @@ func registerAccount(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(body, &newAccount)
 	if err != nil {
 		log.Errorf("registerAccount - error when trying to unmarshal request body: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -153,6 +167,8 @@ func registerAccount(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // updateAccount Used to update an existing account based on the request.
