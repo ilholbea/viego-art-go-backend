@@ -5,4 +5,5 @@ type Account struct {
 	FullName       string `json:"fullName"`
 	Email          string `json:"email"`
 	HashedPassword string `json:"hashedPassword"`
+	Type           string `json:"type"`
 }
