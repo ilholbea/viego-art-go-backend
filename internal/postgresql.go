@@ -15,22 +15,27 @@ type Postgres struct {
 }
 
 // New creates a new connection to a database.
-func New(c *config.Database) (Postgres, error) {
+func New(c *config.Database) (*Postgres, error) {
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", c.Host, c.Port, c.User, c.Password, c.Database)
 	db, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
-		return Postgres{}, err
+		return nil, err
 	}
 
-	return Postgres{database: db, config: c}, err
+	return &Postgres{database: db, config: c}, err
 }
 
-// CreateAccount creates a new exercise in the database.
+// CreateAccount creates a new account in the database. Generates UUID and hashes the password
+// received from the user a second time.(the password received from UI is already hashed)
 func (pg *Postgres) CreateAccount(Account *types.Account) error {
 	Account.ID = generateUUID()
+	password, err := HashPassword(Account.HashedPassword)
+	if err != nil {
+		return err
+	}
 	insertStatement := `INSERT INTO ACCOUNT(ID, FULL_NAME, EMAIL, HASHED_PASSWORD) VALUES($1, $2, $3, $4);`
 
-	_, err := pg.database.Exec(insertStatement, Account.ID, Account.FullName, Account.Email, Account.HashedPassword)
+	_, err = pg.database.Exec(insertStatement, Account.ID, Account.FullName, Account.Email, password)
 	if err != nil {
 		return err
 	}
@@ -50,7 +55,7 @@ func (pg *Postgres) GetAllAccounts() ([]types.Account, error) {
 
 	for rows.Next() {
 		var retrievedAccount types.Account
-		if err = rows.Scan(&retrievedAccount.ID, &retrievedAccount.FullName, &retrievedAccount.Email, &retrievedAccount.HashedPassword); err != nil {
+		if err = rows.Scan(&retrievedAccount.ID, &retrievedAccount.FullName, &retrievedAccount.Email, &retrievedAccount.HashedPassword, &retrievedAccount.Type); err != nil {
 			return nil, err
 		}
 		response = append(response, retrievedAccount)
@@ -59,10 +64,10 @@ func (pg *Postgres) GetAllAccounts() ([]types.Account, error) {
 }
 
 // GetAccount retrieves Account with id from the database.
-func (pg *Postgres) GetAccount(id string) (*types.Account, error) {
+func (pg *Postgres) GetAccount(email string) (*types.Account, error) {
 	var response []types.Account
-	selectStatement := `SELECT * from Account where id=$1`
-	rows, err := pg.database.Query(selectStatement, id)
+	selectStatement := `SELECT * from Account where email=$1`
+	rows, err := pg.database.Query(selectStatement, email)
 	if err != nil {
 		return nil, err
 	}
@@ -70,75 +75,7 @@ func (pg *Postgres) GetAccount(id string) (*types.Account, error) {
 
 	for rows.Next() {
 		var retrievedAccount types.Account
-		if err = rows.Scan(&retrievedAccount.ID, &retrievedAccount.FullName, &retrievedAccount.Email, &retrievedAccount.HashedPassword); err != nil {
-			return nil, err
-		}
-		response = append(response, retrievedAccount)
-	}
-
-	if len(response) > 1 {
-		return nil, fmt.Errorf("too many number of results with the id: %s", id)
-	}
-
-	if len(response) == 0 {
-		return nil, fmt.Errorf("no results found with the id: %s", id)
-	}
-
-	return &response[0], nil
-}
-
-// DeleteAccount removes Account with id from database.
-func (pg *Postgres) DeleteAccount(id string) error {
-	found, err := pg.GetAccount(id)
-	if err != nil {
-		return err
-	}
-
-	if found == nil {
-		return fmt.Errorf("no results found with the id: %s", id)
-	}
-
-	deleteStatement := `DELETE from Account where id=$1`
-	_, err = pg.database.Exec(deleteStatement, id)
-
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// UpdateAccount updates an existing exercise from the database.
-func (pg *Postgres) UpdateAccount(Account *types.Account) error {
-	found, err := pg.GetAccount(Account.ID)
-	if err != nil {
-		return err
-	}
-
-	if found == nil {
-		return fmt.Errorf("no results found with the id: %s", Account.ID)
-	}
-
-	updateStatement := `UPDATE Account SET name=$1, description=$2, type=$3, video=$4, image=$5 where id=$6`
-	_, err = pg.database.Exec(updateStatement, Account.FullName, Account.Email, Account.HashedPassword)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (pg *Postgres) Login(email, hashedPassword string) (*types.Account, error) {
-	var response []types.Account
-	selectStatement := `SELECT * from Account where EMAIL=$1 and HASHED_PASSWORD=$2`
-	rows, err := pg.database.Query(selectStatement, email, hashedPassword)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var retrievedAccount types.Account
-		if err = rows.Scan(&retrievedAccount.ID, &retrievedAccount.FullName, &retrievedAccount.Email, &retrievedAccount.HashedPassword); err != nil {
+		if err = rows.Scan(&retrievedAccount.ID, &retrievedAccount.FullName, &retrievedAccount.Email, &retrievedAccount.HashedPassword, &retrievedAccount.Type); err != nil {
 			return nil, err
 		}
 		response = append(response, retrievedAccount)
@@ -153,6 +90,69 @@ func (pg *Postgres) Login(email, hashedPassword string) (*types.Account, error) 
 	}
 
 	return &response[0], nil
+}
+
+// DeleteAccount removes Account with email from database.
+func (pg *Postgres) DeleteAccount(email string) error {
+	found, err := pg.GetAccount(email)
+	if err != nil {
+		return err
+	}
+
+	if found == nil {
+		return fmt.Errorf("no results found with the email: %s", email)
+	}
+
+	deleteStatement := `DELETE from Account where email=$1`
+	_, err = pg.database.Exec(deleteStatement, email)
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// UpdateAccount updates an existing Account from the database.
+func (pg *Postgres) UpdateAccount(Account *types.Account) error {
+	found, err := pg.GetAccount(Account.Email)
+	if err != nil {
+		return err
+	}
+
+	if found == nil {
+		return fmt.Errorf("no results found with the id: %s", Account.ID)
+	}
+
+	checkPassword := CheckPasswordHash(Account.HashedPassword, found.HashedPassword)
+
+	updatedPassword := found.HashedPassword
+	if !checkPassword {
+		updatedPassword, err = HashPassword(Account.HashedPassword)
+		if err != nil {
+			return err
+		}
+	}
+	updateStatement := `UPDATE Account SET full_name=$1, hashed_password=$2`
+	_, err = pg.database.Exec(updateStatement, Account.FullName, updatedPassword)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Login retrieves a user from the database based on the email, checks the hash and returns true
+// if data is confirmed.
+func (pg *Postgres) Login(email, hashedPassword string) (bool, error) {
+	found, err := pg.GetAccount(email)
+	if err != nil {
+		return false, err
+	}
+
+	// Verifies the hash of the password
+	checkPassword := CheckPasswordHash(hashedPassword, found.HashedPassword)
+
+	return checkPassword, nil
 }
 
 // generateUUID used to generate UUID stored in the database as PK[ID].

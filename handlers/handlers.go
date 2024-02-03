@@ -67,7 +67,6 @@ func Router() *chi.Mux {
 	router.Post("/register", registerAccount)
 	router.Route("/account", func(r chi.Router) {
 		r.Use(authMiddleware)
-
 		r.Delete("/{id}", removeAccount)
 		r.Put("/", updateAccount)
 	})
@@ -107,15 +106,15 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	db, err := internal.New(dbConfig)
 
-	account, err := db.Login(credentials.Email, credentials.HashedPassword)
+	loginSuccessful, err := db.Login(credentials.Email, credentials.HashedPassword)
 	if err != nil {
-		log.Errorf("login - error when retreving account: %v", err)
+		log.Errorf("login - error when loging in account: %v", err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	if account == nil {
-		log.Errorf("login - account is nil: %v", err)
+	if !loginSuccessful {
+		log.Errorf("login - hash validation error")
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
