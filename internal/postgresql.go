@@ -63,7 +63,7 @@ func (pg *Postgres) GetAllAccounts() ([]types.Account, error) {
 	return response, nil
 }
 
-// GetAccount retrieves Account with id from the database.
+// GetAccount retrieves Account with email from the database.
 func (pg *Postgres) GetAccount(email string) (*types.Account, error) {
 	var response []types.Account
 	selectStatement := `SELECT * from Account where email=$1`
