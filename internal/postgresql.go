@@ -11,7 +11,6 @@ import (
 
 type Postgres struct {
 	database *sql.DB
-	config   *config.Database
 }
 
 // New creates a new connection to a database.
@@ -22,7 +21,7 @@ func New(c *config.Database) (*Postgres, error) {
 		return nil, err
 	}
 
-	return &Postgres{database: db, config: c}, err
+	return &Postgres{database: db}, err
 }
 
 // CreateAccount creates a new account in the database. Generates UUID and hashes the password

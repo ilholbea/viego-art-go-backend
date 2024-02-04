@@ -7,8 +7,8 @@ import (
 type Database interface {
 	CreateAccount(Account *types.Account) error
 	GetAllAccounts() ([]types.Account, error)
-	GetAccount(id string) (*types.Account, error)
-	Login(email, hashedPassword *string) (*types.Account, error)
-	UpdateUser(exercise *types.Account) error
-	DeleteUser(id string) error
+	GetAccount(email string) (*types.Account, error)
+	DeleteAccount(email string) error
+	UpdateAccount(account *types.Account) error
+	Login(email, hashedPassword string) (bool, error)
 }

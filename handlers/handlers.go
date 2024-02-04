@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/ilholbea/viego-art/service"
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -47,13 +48,18 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-func Router() *chi.Mux {
+type Server struct {
+	Router   *chi.Mux
+	Database service.Database
+}
+
+func NewServer() *Server {
 	router := chi.NewRouter()
 
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{"https://foo.com"}, // Use this to allow specific origin hosts
 		//AllowedOrigins: []string{"http://localhost"}, // Use this to allow specific origin hosts
-		// AllowOriginFunc:  func(r *http.Request, origin string) bool { return true },
+		// AllowOriginFunc:  func(Router *http.Request, origin string) bool { return true },
 		// AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		// AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		// ExposedHeaders:   []string{"Link"},
@@ -61,16 +67,23 @@ func Router() *chi.Mux {
 		// MaxAge:           300, // Maximum value not ignored by any of major browsers
 	}))
 
-	router.Get("/health", health)
-	router.Post("/login", login)
-	router.Post("/register", registerAccount)
+	db, err := internal.New(dbConfig)
+	if err != nil {
+		return nil
+	}
+
+	server := Server{Router: router, Database: db}
+
+	router.Get("/health", server.health)
+	router.Post("/login", server.login)
+	router.Post("/register", server.registerAccount)
 	router.Route("/account", func(r chi.Router) {
 		r.Use(authMiddleware)
-		r.Delete("/{id}", removeAccount)
-		r.Put("/", updateAccount)
+		r.Delete("/{id}", server.removeAccount)
+		r.Put("/", server.updateAccount)
 	})
 
-	return router
+	return &server
 }
 
 // authMiddleware Used to verify if the request has a valid JWT attached.
@@ -87,14 +100,14 @@ func authMiddleware(handler http.Handler) http.Handler {
 }
 
 // health Used to check the health status of the application.
-func health(w http.ResponseWriter, _ *http.Request) {
+func (server *Server) health(w http.ResponseWriter, _ *http.Request) {
 	log.Printf("health - endpoint was accessed")
 	w.WriteHeader(http.StatusOK)
 }
 
 // login Used to authenticate a user based on email and hashed password. Generated JWT token and
 // places it in the cookie content.
-func login(w http.ResponseWriter, r *http.Request) {
+func (server *Server) login(w http.ResponseWriter, r *http.Request) {
 	var credentials Credentials
 
 	err := json.NewDecoder(r.Body).Decode(&credentials)
@@ -103,9 +116,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
-	db, err := internal.New(dbConfig)
-
-	loginSuccessful, err := db.Login(credentials.Email, credentials.HashedPassword)
+	loginSuccessful, err := server.Database.Login(credentials.Email, credentials.HashedPassword)
 	if err != nil {
 		log.Errorf("login - error when loging in account: %v", err)
 		w.WriteHeader(http.StatusUnauthorized)
@@ -135,7 +146,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 }
 
 // registerAccount Used to register a new account based on the request.
-func registerAccount(w http.ResponseWriter, r *http.Request) {
+func (server *Server) registerAccount(w http.ResponseWriter, r *http.Request) {
 	newAccount := types.Account{}
 
 	body, err := io.ReadAll(r.Body)
@@ -151,15 +162,7 @@ func registerAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := internal.New(dbConfig)
-
-	if err != nil {
-		log.Errorf("registerAccount - error when trying to connect to database: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	err = db.CreateAccount(&newAccount)
+	err = server.Database.CreateAccount(&newAccount)
 	if err != nil {
 		log.Errorf("registerAccount - error when trying to create a new account: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -170,7 +173,7 @@ func registerAccount(w http.ResponseWriter, r *http.Request) {
 }
 
 // updateAccount Used to update an existing account based on the request.
-func updateAccount(w http.ResponseWriter, r *http.Request) {
+func (server *Server) updateAccount(w http.ResponseWriter, r *http.Request) {
 	updatedAccount := types.Account{}
 
 	body, err := io.ReadAll(r.Body)
@@ -187,15 +190,7 @@ func updateAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := internal.New(dbConfig)
-
-	if err != nil {
-		log.Errorf("updateAccount - error when trying to connect to database: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	err = db.UpdateAccount(&updatedAccount)
+	err = server.Database.UpdateAccount(&updatedAccount)
 	if err != nil {
 		log.Errorf("updateAccount - error when trying to update an account: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -204,7 +199,7 @@ func updateAccount(w http.ResponseWriter, r *http.Request) {
 }
 
 // removeAccount Used to remove an account based on the request.
-func removeAccount(w http.ResponseWriter, r *http.Request) {
+func (server *Server) removeAccount(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	if id == "" {
@@ -213,15 +208,7 @@ func removeAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db, err := internal.New(dbConfig)
-
-	if err != nil {
-		log.Errorf("removeAccount - error when trying to connect to database: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	err = db.DeleteAccount(id)
+	err := server.Database.DeleteAccount(id)
 	if err != nil {
 		log.Errorf("removeAccount - error when trying to delete the account: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
