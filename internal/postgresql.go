@@ -28,7 +28,7 @@ func New(c *config.Database) (*Postgres, error) {
 // received from the user a second time.(the password received from UI is already hashed)
 func (pg *Postgres) CreateAccount(Account *types.Account) error {
 	Account.ID = generateUUID()
-	password, err := HashPassword(Account.HashedPassword)
+	password, err := HashPassword(Account.Password)
 	if err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func (pg *Postgres) GetAllAccounts() ([]types.Account, error) {
 
 	for rows.Next() {
 		var retrievedAccount types.Account
-		if err = rows.Scan(&retrievedAccount.ID, &retrievedAccount.FullName, &retrievedAccount.Email, &retrievedAccount.HashedPassword, &retrievedAccount.Type); err != nil {
+		if err = rows.Scan(&retrievedAccount.ID, &retrievedAccount.FullName, &retrievedAccount.Email, &retrievedAccount.Password, &retrievedAccount.Type); err != nil {
 			return nil, err
 		}
 		response = append(response, retrievedAccount)
@@ -74,7 +74,7 @@ func (pg *Postgres) GetAccount(email string) (*types.Account, error) {
 
 	for rows.Next() {
 		var retrievedAccount types.Account
-		if err = rows.Scan(&retrievedAccount.ID, &retrievedAccount.FullName, &retrievedAccount.Email, &retrievedAccount.HashedPassword, &retrievedAccount.Type); err != nil {
+		if err = rows.Scan(&retrievedAccount.ID, &retrievedAccount.FullName, &retrievedAccount.Email, &retrievedAccount.Password, &retrievedAccount.Type); err != nil {
 			return nil, err
 		}
 		response = append(response, retrievedAccount)
@@ -122,11 +122,11 @@ func (pg *Postgres) UpdateAccount(Account *types.Account) error {
 		return fmt.Errorf("no results found with the id: %s", Account.ID)
 	}
 
-	checkPassword := CheckPasswordHash(Account.HashedPassword, found.HashedPassword)
+	checkPassword := CheckPasswordHash(Account.Password, found.Password)
 
-	updatedPassword := found.HashedPassword
+	updatedPassword := found.Password
 	if !checkPassword {
-		updatedPassword, err = HashPassword(Account.HashedPassword)
+		updatedPassword, err = HashPassword(Account.Password)
 		if err != nil {
 			return err
 		}
@@ -142,14 +142,14 @@ func (pg *Postgres) UpdateAccount(Account *types.Account) error {
 
 // Login retrieves a user from the database based on the email, checks the hash and returns true
 // if data is confirmed.
-func (pg *Postgres) Login(email, hashedPassword string) (bool, error) {
+func (pg *Postgres) Login(email, password string) (bool, error) {
 	found, err := pg.GetAccount(email)
 	if err != nil {
 		return false, err
 	}
 
 	// Verifies the hash of the password
-	checkPassword := CheckPasswordHash(hashedPassword, found.HashedPassword)
+	checkPassword := CheckPasswordHash(password, found.Password)
 
 	return checkPassword, nil
 }

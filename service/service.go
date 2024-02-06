@@ -10,5 +10,5 @@ type Database interface {
 	GetAccount(email string) (*types.Account, error)
 	DeleteAccount(email string) error
 	UpdateAccount(account *types.Account) error
-	Login(email, hashedPassword string) (bool, error)
+	Login(email, password string) (bool, error)
 }

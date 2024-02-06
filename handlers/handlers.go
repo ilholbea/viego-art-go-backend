@@ -34,8 +34,8 @@ var dbConfig = &config.Database{
 }
 
 type Credentials struct {
-	Email          string `json:"email"`
-	HashedPassword string `json:"hashedPassword"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 type CookieContent struct {
@@ -56,16 +56,12 @@ type Server struct {
 func NewServer() *Server {
 	router := chi.NewRouter()
 
-	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"https://foo.com"}, // Use this to allow specific origin hosts
-		//AllowedOrigins: []string{"http://localhost"}, // Use this to allow specific origin hosts
-		// AllowOriginFunc:  func(Router *http.Request, origin string) bool { return true },
-		// AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		// AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		// ExposedHeaders:   []string{"Link"},
-		// AllowCredentials: false,
-		// MaxAge:           300, // Maximum value not ignored by any of major browsers
-	}))
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"http://localhost:3000"}, // Use this to allow specific origin hosts
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+	})
+	router.Use(c.Handler)
 
 	db, err := internal.New(dbConfig)
 	if err != nil {
@@ -116,7 +112,7 @@ func (server *Server) login(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 	}
 
-	loginSuccessful, err := server.Database.Login(credentials.Email, credentials.HashedPassword)
+	loginSuccessful, err := server.Database.Login(credentials.Email, credentials.Password)
 	if err != nil {
 		log.Errorf("login - error when loging in account: %v", err)
 		w.WriteHeader(http.StatusUnauthorized)
