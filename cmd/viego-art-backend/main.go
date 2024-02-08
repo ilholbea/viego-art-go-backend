@@ -7,10 +7,13 @@ import (
 )
 
 func main() {
-	server := handlers.NewServer()
-	log.Printf("Server Started...")
-	err := http.ListenAndServe(":8080", server.Router)
+	server, err := handlers.NewServer()
 	if err != nil {
-		log.Fatalf("unable to start server: %v", err)
+		log.Fatalf("Unable to start server: %v", err)
+	}
+	log.Printf("Server Started...")
+	err = http.ListenAndServe(":8080", server.Router)
+	if err != nil {
+		log.Fatalf("Unable to start server: %v", err)
 	}
 }
