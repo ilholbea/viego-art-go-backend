@@ -1,4 +1,4 @@
-APP_NAME=ViegoArtBackend
+APP_NAME=viego-art-backend
 BUILD_DIR=./build
 SRC_DIR=./cmd/viego-art-backend
 
