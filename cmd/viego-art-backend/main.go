@@ -39,9 +39,9 @@ func main() {
 	accountRepo := repository.NewAccountRepository(db)
 
 	// Init services
-	acountService := services.NewAccountService(accountRepo)
+	accountService := services.NewAccountService(accountRepo)
 
-	routes := handlers.NewRoutes(acountService)
+	routes := handlers.NewRoutes(accountService)
 
 	// Init router
 	router := handlers.NewRouter(routes)
