@@ -6,6 +6,7 @@ import (
 
 	"github.com/ilholbea/viego-art-backend/config"
 
+	_ "github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
 )
 

@@ -1,7 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"strconv"
 )
@@ -17,27 +19,59 @@ type DatabaseConfig struct {
 
 type AppConfig struct {
 	DatabaseConfig *DatabaseConfig
+	LogLevel       log.Level
 }
 
 func NewConfig() (*AppConfig, error) {
+	var ll log.Level // log level
+	dbHost, ok := os.LookupEnv("DB_HOST")
+	if !ok {
+		return nil, errors.New("DB_HOST environment variable not set")
+	}
 
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbUsername := os.Getenv("DB_USERNAME")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbDatabase := os.Getenv("DB_DATABASE")
-	dbSchema := os.Getenv("DB_SCHEMA")
+	dbPort, ok := os.LookupEnv("DB_PORT")
+	if !ok {
+		return nil, errors.New("DB_PORT environment variable not set")
+	}
 
-	if dbHost == "" || dbPort == "" || dbUsername == "" || dbPassword == "" || dbDatabase == "" || dbSchema == "" {
-		return &AppConfig{}, fmt.Errorf("unable to initialize app config")
+	dbUsername, ok := os.LookupEnv("DB_USERNAME")
+	if !ok {
+		return nil, errors.New("DB_USERNAME environment variable not set")
+	}
+
+	dbPassword, ok := os.LookupEnv("DB_PASSWORD")
+	if !ok {
+		return nil, errors.New("DB_PASSWORD environment variable not set")
+
+	}
+
+	dbDatabase, ok := os.LookupEnv("DB_DATABASE")
+	if !ok {
+		return nil, errors.New("DB_DATABASE environment variable not set")
+	}
+
+	dbSchema, ok := os.LookupEnv("DB_SCHEMA")
+	if !ok {
+		return nil, errors.New("DB_SCHEMA environment variable not set")
+	}
+
+	logLevel, ok := os.LookupEnv("LOG_LEVEL")
+	if !ok {
+		logLevel = "info"
 	}
 
 	port, err := strconv.Atoi(dbPort)
 	if err != nil {
-		return &AppConfig{}, fmt.Errorf("unable to parse db port")
+		return &AppConfig{}, fmt.Errorf("unable to parse DB_PORT ")
+	}
+
+	ll, err = log.ParseLevel(logLevel)
+	if err != nil {
+		ll = log.InfoLevel
 	}
 
 	return &AppConfig{
+		LogLevel: ll,
 		DatabaseConfig: &DatabaseConfig{
 			Host:     dbHost,
 			Port:     port,

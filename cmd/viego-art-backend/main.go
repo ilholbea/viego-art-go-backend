@@ -41,6 +41,7 @@ func main() {
 	// Init services
 	accountService := services.NewAccountService(accountRepo)
 
+	// Init routes
 	routes := handlers.NewRoutes(accountService)
 
 	// Init router
@@ -49,6 +50,9 @@ func main() {
 		Addr:    ":8080",
 		Handler: router,
 	}
+
+	// Set log level
+	log.SetLevel(conf.LogLevel)
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
