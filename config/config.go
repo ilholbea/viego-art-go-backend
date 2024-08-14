@@ -62,7 +62,7 @@ func NewConfig() (*AppConfig, error) {
 
 	port, err := strconv.Atoi(dbPort)
 	if err != nil {
-		return &AppConfig{}, fmt.Errorf("unable to parse DB_PORT ")
+		return &AppConfig{}, fmt.Errorf("unable to parse DB_PORT")
 	}
 
 	ll, err = log.ParseLevel(logLevel)
