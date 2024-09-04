@@ -25,7 +25,7 @@ func NewRouter(routes *Routes) http.Handler {
 	router := chi.NewRouter()
 
 	router.Get("/health", routes.Health)
-	router.Get("/accounts/{email}", routes.GetAccount)
+	router.Post("/login", routes.Login)
 	router.Post("/accounts", routes.CreateAccount)
 
 	return router
@@ -37,10 +37,34 @@ func (h *Routes) Health(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *Routes) GetAccount(w http.ResponseWriter, r *http.Request) {
-	//TODO implement me
-	log.Debug("Get Account Endpoint Hit")
-	panic("implement me")
+func (h *Routes) Login(w http.ResponseWriter, r *http.Request) {
+	log.Debug("Login Endpoint Hit")
+
+	var receivedAccount types.Account
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	// Decode the payload
+	err := json.NewDecoder(r.Body).Decode(&receivedAccount)
+	if err != nil {
+		log.WithError(err).Error("Error decoding body")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	foundAccount, err := h.accountService.GetAccount(ctx, receivedAccount)
+	if err != nil {
+		log.WithError(err).Error("Error getting account")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	err = json.NewEncoder(w).Encode(foundAccount)
+	if err != nil {
+		log.WithError(err).Error("Error encoding body")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	log.Debugf("Login Account found: %v", foundAccount)
 }
 
 func (h *Routes) CreateAccount(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +84,7 @@ func (h *Routes) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("New Account Creation Request: %v", newAccount)
 
 	// Call the service to create the account
-	if err = h.accountService.Create(ctx, newAccount); err != nil {
+	if err = h.accountService.Create(ctx, &newAccount); err != nil {
 		log.WithError(err).Error("Error creating account")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
