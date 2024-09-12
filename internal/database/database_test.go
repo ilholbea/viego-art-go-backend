@@ -1,7 +1,7 @@
 package database
 
 import (
-	"github.com/ilholbea/viego-art-backend/config"
+	"github.com/ilholbea/viego-art-backend/internal/config"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ilholbea/viego-art-backend/config"
-	"github.com/ilholbea/viego-art-backend/database"
-	"github.com/ilholbea/viego-art-backend/handlers"
-	"github.com/ilholbea/viego-art-backend/repository"
-	"github.com/ilholbea/viego-art-backend/services"
+	"github.com/ilholbea/viego-art-backend/internal/config"
+	"github.com/ilholbea/viego-art-backend/internal/database"
+	"github.com/ilholbea/viego-art-backend/internal/handlers"
+	"github.com/ilholbea/viego-art-backend/internal/repository"
+	"github.com/ilholbea/viego-art-backend/internal/services"
 	"net/http"
 	"os"
 	"os/signal"
@@ -36,13 +36,13 @@ func main() {
 	defer db.Close()
 
 	// Init repositories
-	accountRepo := repository.NewAccountRepository(db)
+	userRepository := repository.NewUserRepository(db)
 
 	// Init services
-	accountService := services.NewAccountService(accountRepo)
+	userService := services.NewUserService(userRepository)
 
 	// Init routes
-	routes := handlers.NewRoutes(accountService)
+	routes := handlers.NewRoutes(userService)
 
 	// Init router
 	router := handlers.NewRouter(routes)

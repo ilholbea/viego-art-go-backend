@@ -1,9 +1,10 @@
 package types
 
-type Account struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Type     string `json:"type"`
+type User struct {
+	ID        string `json:"id"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
+	Type      string `json:"type"`
+	CreatedAt string `json:"createdAt"`
 }

@@ -3,8 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
-
-	"github.com/ilholbea/viego-art-backend/config"
+	"github.com/ilholbea/viego-art-backend/internal/config"
 
 	_ "github.com/lib/pq"
 	log "github.com/sirupsen/logrus"

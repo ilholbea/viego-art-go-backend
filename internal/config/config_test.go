@@ -1,10 +1,10 @@
 package config_test
 
 import (
+	"github.com/ilholbea/viego-art-backend/internal/config"
 	"os"
 	"testing"
 
-	"github.com/ilholbea/viego-art-backend/config"
 	"github.com/stretchr/testify/assert"
 )
 

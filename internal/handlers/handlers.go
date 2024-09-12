@@ -3,22 +3,21 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"github.com/ilholbea/viego-art-backend/internal/services"
 	"github.com/ilholbea/viego-art-backend/types"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-
-	"github.com/ilholbea/viego-art-backend/services"
 )
 
 type Routes struct {
-	accountService services.AccountService
+	userService services.UserService
 }
 
-func NewRoutes(accountService services.AccountService) *Routes {
-	return &Routes{accountService: accountService}
+func NewRoutes(userService services.UserService) *Routes {
+	return &Routes{userService: userService}
 }
 
 func NewRouter(routes *Routes) http.Handler {
@@ -26,7 +25,7 @@ func NewRouter(routes *Routes) http.Handler {
 
 	router.Get("/health", routes.Health)
 	router.Post("/login", routes.Login)
-	router.Post("/accounts", routes.CreateAccount)
+	router.Post("/users", routes.CreateUser) // Signup
 
 	return router
 }
@@ -40,52 +39,52 @@ func (h *Routes) Health(w http.ResponseWriter, r *http.Request) {
 func (h *Routes) Login(w http.ResponseWriter, r *http.Request) {
 	log.Debug("Login Endpoint Hit")
 
-	var receivedAccount types.Account
+	var receivedUser types.User
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
 	// Decode the payload
-	err := json.NewDecoder(r.Body).Decode(&receivedAccount)
+	err := json.NewDecoder(r.Body).Decode(&receivedUser)
 	if err != nil {
 		log.WithError(err).Error("Error decoding body")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	foundAccount, err := h.accountService.GetAccount(ctx, receivedAccount)
+	foundUser, err := h.userService.GetUser(ctx, receivedUser)
 	if err != nil {
-		log.WithError(err).Error("Error getting account")
+		log.WithError(err).Error("Error getting user")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	err = json.NewEncoder(w).Encode(foundAccount)
+	err = json.NewEncoder(w).Encode(foundUser)
 	if err != nil {
 		log.WithError(err).Error("Error encoding body")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	log.Debugf("Login Account found: %v", foundAccount)
+	log.Debugf("Login User found: %v", foundUser)
 }
 
-func (h *Routes) CreateAccount(w http.ResponseWriter, r *http.Request) {
-	log.Debug("Create Account Endpoint Hit")
-	var newAccount types.Account
+func (h *Routes) CreateUser(w http.ResponseWriter, r *http.Request) {
+	log.Debug("CreateUser User Endpoint Hit")
+	var newUser types.User
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
 	// Decode the payload
-	err := json.NewDecoder(r.Body).Decode(&newAccount)
+	err := json.NewDecoder(r.Body).Decode(&newUser)
 	if err != nil {
 		log.WithError(err).Error("Error decoding body")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	log.Debugf("New Account Creation Request: %v", newAccount)
+	log.Debugf("New User Creation Request: %v", newUser)
 
-	// Call the service to create the account
-	if err = h.accountService.Create(ctx, &newAccount); err != nil {
-		log.WithError(err).Error("Error creating account")
+	// Call the service to create the use
+	if err = h.userService.CreateUser(ctx, &newUser); err != nil {
+		log.WithError(err).Error("Error creating user")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -94,6 +93,6 @@ func (h *Routes) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{
-		"message": "Account created successfully",
+		"message": "User created successfully",
 	})
 }
