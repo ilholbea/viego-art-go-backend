@@ -3,13 +3,16 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/ilholbea/viego-art-backend/internal/services"
+	"github.com/ilholbea/viego-art-backend/pkg/utils"
 	"github.com/ilholbea/viego-art-backend/types"
 	log "github.com/sirupsen/logrus"
 	"net/http"
+	"os"
 	"time"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type Routes struct {
@@ -23,10 +26,19 @@ func NewRoutes(userService services.UserService) *Routes {
 func NewRouter(routes *Routes) http.Handler {
 	router := chi.NewRouter()
 
+	router.Use(middleware.Logger)
+	router.Use(middleware.Recoverer)
+
 	router.Get("/health", routes.Health)
 	router.Post("/login", routes.Login)
-	router.Post("/users", routes.CreateUser) // Signup
+	router.Post("/users", routes.Signup) // Signup
 
+	router.Group(func(r chi.Router) {
+		r.Use(utils.JWTMiddleware)
+
+		// Protected route
+		router.Delete("/users", routes.DeleteUser)
+	})
 	return router
 }
 
@@ -57,17 +69,42 @@ func (h *Routes) Login(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
-	err = json.NewEncoder(w).Encode(foundUser)
-	if err != nil {
-		log.WithError(err).Error("Error encoding body")
-		w.WriteHeader(http.StatusInternalServerError)
+	//err = json.NewEncoder(w).Encode(foundUser)
+	//if err != nil {
+	//	log.WithError(err).Error("Error encoding body")
+	//	w.WriteHeader(http.StatusInternalServerError)
+	//}
+
+	if foundUser != nil {
+		log.Debugf("Login User found: %v", foundUser)
+		tokenString, err := utils.CreateToken(foundUser.Username)
+		if err != nil {
+			log.WithError(err).Error("Error creating token")
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		// Set the JWT token in a secure HTTP-only cookie
+		http.SetCookie(w, &http.Cookie{
+			Name:     "jwt_token",
+			Value:    tokenString,
+			Expires:  time.Now().Add(1 * time.Hour),
+			HttpOnly: true,                             // Prevent JavaScript access
+			Secure:   os.Getenv("ENV") == "production", // Send over HTTPS only if in production
+			Path:     "/",                              // Cookie is available to all endpoints
+		})
+
+		w.Write([]byte("Logged in successfully"))
+		w.WriteHeader(http.StatusOK)
+	} else {
+		log.Debugf("Login User not found")
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprint(w, "Invalid credentials")
 	}
 
-	log.Debugf("Login User found: %v", foundUser)
 }
 
-func (h *Routes) CreateUser(w http.ResponseWriter, r *http.Request) {
-	log.Debug("CreateUser User Endpoint Hit")
+func (h *Routes) Signup(w http.ResponseWriter, r *http.Request) {
+	log.Debug("Signup User Endpoint Hit")
 	var newUser types.User
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
@@ -95,4 +132,8 @@ func (h *Routes) CreateUser(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"message": "User created successfully",
 	})
+}
+
+func (h *Routes) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("User deleted successfully"))
 }
