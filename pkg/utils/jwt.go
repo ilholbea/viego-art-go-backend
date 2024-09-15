@@ -4,18 +4,38 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	jwt "github.com/dgrijalva/jwt-go"
+	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/ilholbea/viego-art-backend/types"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 )
 
-func CreateToken(username string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": username,
-		"exp":      time.Now().Add(1 * time.Hour).Unix(),
-	})
+// CustomClaims Custom claims for the JWT that include the user fields
+type CustomClaims struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Type     string `json:"type"`
+	jwt.RegisteredClaims
+}
+
+func CreateToken(user *types.User) (string, error) {
+	claims := CustomClaims{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+		Type:     user.Type,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)), // Token valid for 1 hour
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    os.Getenv("ISSUER"),
+			Subject:   user.ID,
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	secretKey, ok := os.LookupEnv("JWT_SECRET_KEY")
 	if !ok {

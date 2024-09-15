@@ -77,7 +77,7 @@ func (h *Routes) Login(w http.ResponseWriter, r *http.Request) {
 
 	if foundUser != nil {
 		log.Debugf("Login User found: %v", foundUser)
-		tokenString, err := utils.CreateToken(foundUser.Username)
+		tokenString, err := utils.CreateToken(foundUser)
 		if err != nil {
 			log.WithError(err).Error("Error creating token")
 			w.WriteHeader(http.StatusInternalServerError)
