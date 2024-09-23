@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,17 +11,19 @@ import (
 	"github.com/ilholbea/viego-art-backend/pkg/utils"
 	"github.com/ilholbea/viego-art-backend/types"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"net/http"
 	"os"
 	"time"
 )
 
 type Routes struct {
-	userService services.UserService
+	userService  services.UserService
+	imageService services.ImageService
 }
 
-func NewRoutes(userService services.UserService) *Routes {
-	return &Routes{userService: userService}
+func NewRoutes(userService services.UserService, imageService services.ImageService) *Routes {
+	return &Routes{userService: userService, imageService: imageService}
 }
 
 func NewRouter(routes *Routes) http.Handler {
@@ -36,8 +39,10 @@ func NewRouter(routes *Routes) http.Handler {
 	router.Group(func(r chi.Router) {
 		r.Use(utils.JWTMiddleware)
 
-		// Protected route
+		// Protected routes
 		router.Delete("/users", routes.DeleteUser)
+		router.Post("/images", routes.UploadImage)
+
 	})
 	return router
 }
@@ -135,5 +140,69 @@ func (h *Routes) Signup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Routes) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	// TODO ADD JWT CHECK
 	w.Write([]byte("User deleted successfully"))
+}
+
+func (h *Routes) UploadImage(w http.ResponseWriter, r *http.Request) {
+	// TODO ADD JWT CHECK, DEBUGGER LOGS
+	var newFile types.UploadedFile
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	err := r.ParseMultipartForm(32 << 50)
+	if err != nil {
+		log.WithError(err).Error("Error parsing multipart form")
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
+	filename := r.FormValue("filename")
+	bucket := r.FormValue("bucket")
+
+	if filename == "" {
+		log.WithError(err).Error("Error parsing file name")
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	newFile.Filename = filename
+
+	if bucket == "" {
+		log.WithError(err).Error("Error parsing bucket name")
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
+	// Parse and handle the file
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		log.WithError(err).Error("Error retrieving file")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Read the file to get content type
+	buff := make([]byte, 512)
+	file.Read(buff)
+	file.Seek(0, 0)
+	contentType := http.DetectContentType(buff)
+	newFile.ContentType = contentType
+
+	// Create a buffer to store file content
+	var fileBuffer bytes.Buffer
+	fileSize, err := io.Copy(&fileBuffer, file)
+	if err != nil {
+		log.WithError(err).Error("Error reading file content")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	newFile.Size = fileSize
+	newFile.File = fileBuffer.String()
+
+	err = h.imageService.UploadImage(ctx, bucket, &newFile)
+	if err != nil {
+		log.WithError(err).Error("Error uploading image")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

@@ -40,9 +40,10 @@ func main() {
 
 	// Init services
 	userService := services.NewUserService(userRepository)
+	imageService := services.NewImageService()
 
 	// Init routes
-	routes := handlers.NewRoutes(userService)
+	routes := handlers.NewRoutes(userService, imageService)
 
 	// Init router
 	router := handlers.NewRouter(routes)

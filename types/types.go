@@ -8,3 +8,10 @@ type User struct {
 	Type      string `json:"type"`
 	CreatedAt string `json:"createdAt"`
 }
+
+type UploadedFile struct {
+	Filename    string `json:"filename"`
+	File        string `json:"file"`
+	Size        int64  `json:"size"`
+	ContentType string `json:"content_type"`
+}
