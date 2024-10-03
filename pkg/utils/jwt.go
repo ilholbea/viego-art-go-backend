@@ -3,7 +3,6 @@ package utils
 import (
 	"context"
 	"errors"
-	"fmt"
 	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/ilholbea/viego-art-backend/types"
 	"net/http"
@@ -48,25 +47,6 @@ func CreateToken(user *types.User) (string, error) {
 	}
 
 	return tokenString, nil
-}
-
-func VerifyToken(tokenString string) error {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		secretKey, ok := os.LookupEnv("JWT_SECRET_KEY")
-		if !ok {
-			return nil, errors.New("JWT_SECRET_KEY environment variable is not set")
-		}
-		return []byte(secretKey), nil
-	})
-	if err != nil {
-		return err
-	}
-
-	if !token.Valid {
-		return fmt.Errorf("invalid token")
-	}
-
-	return nil
 }
 
 func JWTMiddleware(next http.Handler) http.Handler {

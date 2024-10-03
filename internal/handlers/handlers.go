@@ -40,8 +40,8 @@ func NewRouter(routes *Routes) http.Handler {
 		r.Use(utils.JWTMiddleware)
 
 		// Protected routes
-		router.Delete("/users", routes.DeleteUser)
-		router.Post("/images", routes.UploadImage)
+		r.Delete("/users", routes.DeleteUser)
+		r.Post("/images", routes.UploadImage)
 
 	})
 	return router
@@ -73,12 +73,6 @@ func (h *Routes) Login(w http.ResponseWriter, r *http.Request) {
 		log.WithError(err).Error("Error getting user")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-
-	//err = json.NewEncoder(w).Encode(foundUser)
-	//if err != nil {
-	//	log.WithError(err).Error("Error encoding body")
-	//	w.WriteHeader(http.StatusInternalServerError)
-	//}
 
 	if foundUser != nil {
 		log.Debugf("Login User found: %v", foundUser)
